@@ -1,12 +1,29 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-// These env vars should be set in Netlify and locally in .env.local
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+let client: SupabaseClient | null = null;
+let adminClient: SupabaseClient | null = null;
 
-// Service role client for server-side only
-export const supabaseAdmin = supabaseUrl
-  ? createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey)
-  : null;
+function getClient(): SupabaseClient | null {
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+  if (!client) {
+    client = createClient(supabaseUrl, supabaseAnonKey);
+  }
+  return client;
+}
+
+function getAdminClient(): SupabaseClient | null {
+  if (!supabaseUrl) return null;
+  if (!adminClient) {
+    adminClient = createClient(
+      supabaseUrl,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey
+    );
+  }
+  return adminClient;
+}
+
+export const supabase = getClient();
+export const supabaseAdmin = getAdminClient();
