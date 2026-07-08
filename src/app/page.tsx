@@ -1,16 +1,94 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import Header from "@/components/Header";
 import CartBar from "@/components/CartBar";
 import OrderModal from "@/components/OrderModal";
 import { CategoryIcon, MeatIcon } from "@/lib/icons";
-import { categories, meats, toppings, salsas, extras } from "@/lib/menu-data";
 import { Category, Meat, Topping, Salsa, Extra, CartItem } from "@/lib/types";
+
+// Fallback data for when the API is unavailable
+const FALLBACK_CATEGORIES: Category[] = [
+  { id: 1, name: "Tacos", icon: "taco", base_price: 3.0, sort_order: 1 },
+  { id: 2, name: "Chorreadas", icon: "chorreada", base_price: 7.0, sort_order: 2 },
+  { id: 3, name: "Vampiros", icon: "vampiro", base_price: 6.5, sort_order: 3 },
+  { id: 4, name: "Gringas", icon: "gringa", base_price: 16.0, sort_order: 4 },
+  { id: 5, name: "Burritos", icon: "burrito", base_price: 13.0, sort_order: 5 },
+  { id: 6, name: "Quesadillas", icon: "quesadilla", base_price: 9.0, sort_order: 6 },
+];
+
+const FALLBACK_MEATS: Meat[] = [
+  { id: 1, name: "Asada", description: "Carne de res asada a la parrilla" },
+  { id: 2, name: "Pastor", description: "Cerdo marinado al estilo tradicional" },
+  { id: 3, name: "Pollo", description: "Pollo sazonado y asado" },
+  { id: 4, name: "Chorizo", description: "Chorizo artesanal" },
+  { id: 5, name: "Cabeza", description: "Carne de res cocida lentamente" },
+];
+
+const FALLBACK_TOPPINGS: Topping[] = [
+  { id: 1, name: "Cebolla", extra_price: 0 },
+  { id: 2, name: "Cilantro", extra_price: 0 },
+  { id: 3, name: "Lechuga", extra_price: 0 },
+  { id: 4, name: "Jitomate", extra_price: 0 },
+  { id: 5, name: "Frijoles", extra_price: 1.0 },
+  { id: 6, name: "Arroz", extra_price: 1.0 },
+  { id: 7, name: "Crema", extra_price: 0 },
+  { id: 8, name: "Aguacate", extra_price: 1.5 },
+];
+
+const FALLBACK_SALSAS: Salsa[] = [
+  { id: 1, name: "Roja", description: "Salsa de chile rojo tradicional" },
+  { id: 2, name: "Verde", description: "Salsa de chile verde y tomatillo" },
+  { id: 3, name: "Guacamole", description: "Guacamole fresco" },
+  { id: 4, name: "Habanero", description: "Salsa picante de habanero" },
+];
+
+const FALLBACK_EXTRAS: Extra[] = [
+  { id: 1, name: "Queso extra", price: 1.0 },
+  { id: 2, name: "Mas carne", price: 3.0 },
+  { id: 3, name: "Totopos", price: 2.0 },
+];
 
 type Step = "category" | "meat" | "toppings" | "salsa" | "extras" | "confirm";
 
+const STEP_LABELS: Record<Step, string> = {
+  category: "Categoría",
+  meat: "Carne",
+  toppings: "Toppings",
+  salsa: "Salsa",
+  extras: "Extras",
+  confirm: "Confirmar",
+};
+
+/** Fade wrapper: renders children with a fade-in effect keyed on the step */
+function FadeStep({ step, children }: { step: Step; children: React.ReactNode }) {
+  return (
+    <div key={step}>
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+      <div
+        className="motion-safe:animate-[fadeIn_0.3s_ease-out]"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
+  const [menuData, setMenuData] = useState<{
+    categories: Category[];
+    meats: Meat[];
+    toppings: Topping[];
+    salsas: Salsa[];
+    extras: Extra[];
+  } | null>(null);
+  const [menuLoading, setMenuLoading] = useState(true);
+
   const [step, setStep] = useState<Step>("category");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedMeat, setSelectedMeat] = useState<Meat | null>(null);
@@ -23,6 +101,42 @@ export default function Home() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Fetch menu from API
+  useEffect(() => {
+    async function loadMenu() {
+      try {
+        const res = await fetch("/api/menu/admin");
+        if (!res.ok) throw new Error("API error");
+        const data = await res.json();
+        setMenuData({
+          categories: data.categories ?? FALLBACK_CATEGORIES,
+          meats: data.meats ?? FALLBACK_MEATS,
+          toppings: data.toppings ?? FALLBACK_TOPPINGS,
+          salsas: data.salsas ?? FALLBACK_SALSAS,
+          extras: data.extras ?? FALLBACK_EXTRAS,
+        });
+      } catch {
+        // Use fallback on error
+        setMenuData({
+          categories: FALLBACK_CATEGORIES,
+          meats: FALLBACK_MEATS,
+          toppings: FALLBACK_TOPPINGS,
+          salsas: FALLBACK_SALSAS,
+          extras: FALLBACK_EXTRAS,
+        });
+      } finally {
+        setMenuLoading(false);
+      }
+    }
+    loadMenu();
+  }, []);
+
+  const categories = menuData?.categories ?? FALLBACK_CATEGORIES;
+  const meats = menuData?.meats ?? FALLBACK_MEATS;
+  const toppings = menuData?.toppings ?? FALLBACK_TOPPINGS;
+  const salsas = menuData?.salsas ?? FALLBACK_SALSAS;
+  const extras = menuData?.extras ?? FALLBACK_EXTRAS;
 
   const calculateUnitPrice = useCallback(() => {
     let price = selectedCategory?.base_price || 0;
@@ -143,7 +257,7 @@ export default function Home() {
 
   const stepTitle = (s: Step): string => {
     const titles: Record<Step, string> = {
-      category: "Que se te antoja?",
+      category: "¿Qué se te antoja?",
       meat: "Elige tu carne",
       toppings: "Agrega toppings",
       salsa: "Elige tu salsa",
@@ -157,99 +271,156 @@ export default function Home() {
   const stepNumbers: Step[] = ["category", "meat", "toppings", "salsa", "extras", "confirm"];
   const currentStepIndex = stepNumbers.indexOf(step);
 
+  if (menuLoading) {
+    return (
+      <div
+        className="flex min-h-screen flex-col bg-background"
+        style={{
+          backgroundImage: "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(201, 150, 51, 0.06) 0%, transparent 70%)",
+        }}
+      >
+        <Header />
+        <main className="flex flex-1 items-center justify-center">
+          <div className="text-center">
+            <svg className="mx-auto h-8 w-8 animate-spin text-gold" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.3" />
+              <path d="M12 2a10 10 0 019.95 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            <p className="mt-3 text-sm text-foreground/50">Cargando menú...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen flex-col bg-background pb-24">
+    <div
+      className="flex min-h-screen flex-col bg-background pb-28"
+      style={{
+        backgroundImage: "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(201, 150, 51, 0.06) 0%, transparent 70%)",
+      }}
+    >
       <Header />
 
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
-        {/* Step indicator */}
-        <div className="mb-6 flex items-center justify-center gap-1.5 text-xs">
+      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-5">
+        {/* Step indicator - visual dots with labels */}
+        <div className="mb-6 flex items-center justify-center gap-0">
           {stepNumbers.map((s, i) => (
             <React.Fragment key={s}>
-              <div
-                className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium transition-colors ${
-                  i <= currentStepIndex
-                    ? "bg-gold text-background"
-                    : "bg-dark-card text-foreground/30"
-                }`}
-              >
-                {i + 1}
+              {/* Dot */}
+              <div className="flex flex-col items-center gap-1.5">
+                <div
+                  className={`rounded-full transition-all duration-300 ${
+                    i === currentStepIndex
+                      ? "h-3.5 w-3.5 bg-gold shadow-[0_0_8px_rgba(201,150,51,0.5)]"
+                      : i < currentStepIndex
+                      ? "h-2.5 w-2.5 bg-gold/60"
+                      : "h-2.5 w-2.5 bg-dark-border"
+                  }`}
+                />
+                <span
+                  className={`text-[10px] leading-tight transition-colors duration-300 ${
+                    i <= currentStepIndex ? "text-gold/80" : "text-foreground/25"
+                  }`}
+                >
+                  {STEP_LABELS[s]}
+                </span>
               </div>
+              {/* Connector line */}
               {i < stepNumbers.length - 1 && (
                 <div
-                  className={`h-px w-6 transition-colors ${
-                    i < currentStepIndex ? "bg-gold" : "bg-dark-border"
+                  className={`mx-1.5 sm:mx-2.5 h-px transition-colors duration-300 ${
+                    i < currentStepIndex ? "bg-gold/40" : "bg-dark-border"
                   }`}
+                  style={{ width: "clamp(12px, 4vw, 28px)" }}
                 />
               )}
             </React.Fragment>
           ))}
         </div>
 
-        <div className="mb-6 text-center">
-          <h2 className="text-xl font-bold text-foreground">{stepTitle(step)}</h2>
+        {/* Step title */}
+        <div className="mb-5 text-center">
+          <h2
+            className="text-xl font-bold text-foreground sm:text-2xl"
+            style={{ fontFamily: "Georgia, serif" }}
+          >
+            {stepTitle(step)}
+          </h2>
           {selectedCategory && (
-            <p className="mt-1 text-sm text-gold">{selectedCategory.name} (base ${selectedCategory.base_price.toFixed(2)})</p>
+            <p className="mt-1.5 text-sm text-gold/80">
+              {selectedCategory.name} · base ${selectedCategory.base_price.toFixed(2)}
+            </p>
           )}
         </div>
 
         {/* Step 1: Category */}
         {step === "category" && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => {
-                  setSelectedCategory(cat);
-                  setStep("meat");
-                }}
-                className="group flex flex-col items-center gap-3 rounded-xl border border-dark-border bg-dark-card p-5 transition-all hover:border-gold/30 hover:bg-dark-hover"
-              >
-                <div className="text-gold/70 transition-colors group-hover:text-gold">
-                  <CategoryIcon name={cat.icon} className="h-10 w-10" />
-                </div>
-                <div className="text-center">
-                  <p className="font-semibold text-foreground">{cat.name}</p>
-                  <p className="text-sm text-gold">${cat.base_price.toFixed(2)}</p>
-                </div>
-              </button>
-            ))}
-          </div>
+          <FadeStep step={step}>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => {
+                    setSelectedCategory(cat);
+                    setStep("meat");
+                  }}
+                  className="group flex flex-col items-center gap-3 rounded-2xl border border-dark-border/60 bg-dark-card/80 p-5 transition-all duration-200 hover:border-gold/30 hover:bg-dark-hover hover:shadow-lg hover:shadow-gold/5 active:scale-[0.97]"
+                >
+                  <div className="text-gold/60 transition-all duration-200 group-hover:text-gold group-hover:scale-110">
+                    <CategoryIcon name={cat.icon} className="h-12 w-12 sm:h-14 sm:w-14" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-base font-semibold text-foreground sm:text-lg">{cat.name}</p>
+                    <p className="mt-0.5 text-sm font-medium text-gold/80">
+                      ${cat.base_price.toFixed(2)}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </FadeStep>
         )}
 
         {/* Step 2: Meat */}
         {step === "meat" && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {meats.map((meat) => (
-              <button
-                key={meat.id}
-                onClick={() => {
-                  setSelectedMeat(meat);
-                  setStep("toppings");
-                }}
-                className={`group flex flex-col items-center gap-3 rounded-xl border p-5 transition-all ${
-                  selectedMeat?.id === meat.id
-                    ? "border-gold bg-gold/5"
-                    : "border-dark-border bg-dark-card hover:border-gold/30 hover:bg-dark-hover"
-                }`}
-              >
-                <div className={`transition-colors ${
-                  selectedMeat?.id === meat.id ? "text-gold" : "text-foreground/50 group-hover:text-gold"
-                }`}>
-                  <MeatIcon name={meat.name} className="h-10 w-10" />
-                </div>
-                <div className="text-center">
-                  <p className="font-semibold text-foreground">{meat.name}</p>
-                  <p className="text-xs text-foreground/50">{meat.description}</p>
-                </div>
-              </button>
-            ))}
-          </div>
+          <FadeStep step={step}>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {meats.map((meat) => (
+                <button
+                  key={meat.id}
+                  onClick={() => {
+                    setSelectedMeat(meat);
+                    setStep("toppings");
+                  }}
+                  className={`group flex flex-col items-center gap-3 rounded-2xl border p-5 transition-all duration-200 active:scale-[0.97] ${
+                    selectedMeat?.id === meat.id
+                      ? "border-gold/60 bg-gold/5 shadow-md shadow-gold/10"
+                      : "border-dark-border/60 bg-dark-card/80 hover:border-gold/30 hover:bg-dark-hover hover:shadow-lg hover:shadow-gold/5"
+                  }`}
+                >
+                  <div
+                    className={`transition-all duration-200 group-hover:scale-110 ${
+                      selectedMeat?.id === meat.id
+                        ? "text-gold"
+                        : "text-foreground/50 group-hover:text-gold"
+                    }`}
+                  >
+                    <MeatIcon name={meat.name} className="h-11 w-11 sm:h-13 sm:w-13" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-base font-semibold text-foreground">{meat.name}</p>
+                    <p className="mt-0.5 text-xs text-foreground/50">{meat.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </FadeStep>
         )}
 
         {/* Step 3: Toppings */}
         {step === "toppings" && (
-          <>
+          <FadeStep step={step}>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {toppings.map((topping) => {
                 const isSelected = selectedToppings.some((t) => t.id === topping.id);
@@ -257,26 +428,42 @@ export default function Home() {
                   <button
                     key={topping.id}
                     onClick={() => toggleTopping(topping)}
-                    className={`rounded-xl border p-4 text-center transition-all ${
+                    className={`rounded-2xl border p-4 text-center transition-all duration-200 active:scale-[0.97] ${
                       isSelected
-                        ? "border-gold bg-gold/5"
-                        : "border-dark-border bg-dark-card hover:border-gold/30 hover:bg-dark-hover"
+                        ? "border-gold/60 bg-gold/5 shadow-sm shadow-gold/10"
+                        : "border-dark-border/60 bg-dark-card/80 hover:border-gold/30 hover:bg-dark-hover"
                     }`}
                   >
-                    <div className={`text-lg ${isSelected ? "text-gold" : "text-foreground/70"}`}>
+                    <div className={`text-lg ${isSelected ? "text-gold" : "text-foreground/60"}`}>
                       {isSelected ? (
-                        <svg className="mx-auto h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          className="mx-auto h-7 w-7"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
                       ) : (
-                        <svg className="mx-auto h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          className="mx-auto h-7 w-7"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <circle cx="12" cy="12" r="10" />
                         </svg>
                       )}
                     </div>
-                    <p className="mt-1 text-sm font-medium text-foreground">{topping.name}</p>
+                    <p className="mt-1.5 text-sm font-medium text-foreground">{topping.name}</p>
                     {topping.extra_price > 0 && (
-                      <p className="text-xs text-gold">+${topping.extra_price.toFixed(2)}</p>
+                      <p className="mt-0.5 text-xs text-gold/80">+${topping.extra_price.toFixed(2)}</p>
                     )}
                   </button>
                 );
@@ -285,44 +472,56 @@ export default function Home() {
             <div className="mt-6 flex justify-center">
               <button
                 onClick={() => setStep("salsa")}
-                className="rounded-lg bg-gold px-8 py-2.5 text-sm font-semibold text-background transition-colors hover:bg-gold-dark"
+                className="rounded-xl bg-gold px-10 py-3 text-sm font-semibold text-background shadow-lg shadow-gold/20 transition-all duration-200 hover:bg-gold-dark hover:shadow-gold/30 active:scale-95"
               >
                 Siguiente
               </button>
             </div>
-          </>
+          </FadeStep>
         )}
 
         {/* Step 4: Salsa */}
         {step === "salsa" && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {salsas.map((salsa) => (
-              <button
-                key={salsa.id}
-                onClick={() => {
-                  setSelectedSalsa(salsa);
-                  setStep("extras");
-                }}
-                className={`rounded-xl border p-5 text-center transition-all ${
-                  selectedSalsa?.id === salsa.id
-                    ? "border-gold bg-gold/5"
-                    : "border-dark-border bg-dark-card hover:border-gold/30 hover:bg-dark-hover"
-                }`}
-              >
-                <svg className={`mx-auto h-8 w-8 ${selectedSalsa?.id === salsa.id ? "text-gold" : "text-foreground/50"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                </svg>
-                <p className="mt-2 font-semibold text-foreground">{salsa.name}</p>
-                <p className="text-xs text-foreground/50">{salsa.description}</p>
-              </button>
-            ))}
-          </div>
+          <FadeStep step={step}>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {salsas.map((salsa) => (
+                <button
+                  key={salsa.id}
+                  onClick={() => {
+                    setSelectedSalsa(salsa);
+                    setStep("extras");
+                  }}
+                  className={`rounded-2xl border p-5 text-center transition-all duration-200 active:scale-[0.97] ${
+                    selectedSalsa?.id === salsa.id
+                      ? "border-gold/60 bg-gold/5 shadow-sm shadow-gold/10"
+                      : "border-dark-border/60 bg-dark-card/80 hover:border-gold/30 hover:bg-dark-hover"
+                  }`}
+                >
+                  <svg
+                    className={`mx-auto h-9 w-9 transition-all duration-200 ${
+                      selectedSalsa?.id === salsa.id ? "text-gold scale-110" : "text-foreground/40"
+                    }`}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                  </svg>
+                  <p className="mt-2 font-semibold text-foreground">{salsa.name}</p>
+                  <p className="mt-0.5 text-xs text-foreground/50">{salsa.description}</p>
+                </button>
+              ))}
+            </div>
+          </FadeStep>
         )}
 
         {/* Step 5: Extras */}
         {step === "extras" && (
-          <>
-            <p className="mb-4 text-center text-sm text-foreground/50">
+          <FadeStep step={step}>
+            <p className="mb-4 text-center text-sm text-foreground/40">
               Selecciona extras opcionales
             </p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -332,27 +531,43 @@ export default function Home() {
                   <button
                     key={extra.id}
                     onClick={() => toggleExtra(extra)}
-                    className={`rounded-xl border p-4 text-center transition-all ${
+                    className={`rounded-2xl border p-4 text-center transition-all duration-200 active:scale-[0.97] ${
                       isSelected
-                        ? "border-gold bg-gold/5"
-                        : "border-dark-border bg-dark-card hover:border-gold/30 hover:bg-dark-hover"
+                        ? "border-gold/60 bg-gold/5 shadow-sm shadow-gold/10"
+                        : "border-dark-border/60 bg-dark-card/80 hover:border-gold/30 hover:bg-dark-hover"
                     }`}
                   >
-                    <div className={`text-lg ${isSelected ? "text-gold" : "text-foreground/70"}`}>
+                    <div className={`text-lg ${isSelected ? "text-gold" : "text-foreground/60"}`}>
                       {isSelected ? (
-                        <svg className="mx-auto h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          className="mx-auto h-7 w-7"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
                       ) : (
-                        <svg className="mx-auto h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          className="mx-auto h-7 w-7"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <circle cx="12" cy="12" r="10" />
                           <line x1="12" y1="8" x2="12" y2="16" />
                           <line x1="8" y1="12" x2="16" y2="12" />
                         </svg>
                       )}
                     </div>
-                    <p className="mt-1 text-sm font-medium text-foreground">{extra.name}</p>
-                    <p className="text-xs text-gold">+${extra.price.toFixed(2)}</p>
+                    <p className="mt-1.5 text-sm font-medium text-foreground">{extra.name}</p>
+                    <p className="mt-0.5 text-xs text-gold/80">+${extra.price.toFixed(2)}</p>
                   </button>
                 );
               })}
@@ -360,111 +575,133 @@ export default function Home() {
             <div className="mt-6 flex justify-center gap-3">
               <button
                 onClick={() => setStep("salsa")}
-                className="rounded-lg border border-dark-border px-6 py-2.5 text-sm font-medium text-foreground/70 transition-colors hover:bg-dark-hover"
+                className="rounded-xl border border-dark-border/60 px-6 py-3 text-sm font-medium text-foreground/60 transition-all duration-200 hover:bg-dark-hover hover:text-foreground active:scale-95"
               >
-                Atras
+                Atrás
               </button>
               <button
                 onClick={() => setStep("confirm")}
-                className="rounded-lg bg-gold px-8 py-2.5 text-sm font-semibold text-background transition-colors hover:bg-gold-dark"
+                className="rounded-xl bg-gold px-10 py-3 text-sm font-semibold text-background shadow-lg shadow-gold/20 transition-all duration-200 hover:bg-gold-dark hover:shadow-gold/30 active:scale-95"
               >
                 Continuar
               </button>
             </div>
-          </>
+          </FadeStep>
         )}
 
         {/* Step 6: Confirm */}
         {step === "confirm" && (
-          <div className="mx-auto max-w-md space-y-4">
-            <div className="rounded-xl border border-dark-border bg-dark-card p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-foreground/50">Tipo</span>
-                <span className="font-semibold text-foreground">{selectedCategory?.name}</span>
+          <FadeStep step={step}>
+            <div className="mx-auto max-w-md space-y-5">
+              <div className="rounded-2xl border border-dark-border/50 bg-dark-card/80 p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-foreground/50">Tipo</span>
+                  <span className="font-semibold text-foreground">{selectedCategory?.name}</span>
+                </div>
+                {selectedMeat && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground/50">Carne</span>
+                    <span className="text-foreground">{selectedMeat.name}</span>
+                  </div>
+                )}
+                {selectedToppings.length > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground/50">Toppings</span>
+                    <span className="text-right text-foreground">
+                      {selectedToppings.map((t) => t.name).join(", ")}
+                    </span>
+                  </div>
+                )}
+                {selectedSalsa && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground/50">Salsa</span>
+                    <span className="text-foreground">{selectedSalsa.name}</span>
+                  </div>
+                )}
+                {selectedExtras.length > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground/50">Extras</span>
+                    <span className="text-right text-foreground">
+                      {selectedExtras.map((e) => e.name).join(", ")}
+                    </span>
+                  </div>
+                )}
+                <div className="border-t border-dark-border/40 pt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-foreground/50">Precio unitario</span>
+                    <span className="text-gold font-medium">${calculateUnitPrice().toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
-              {selectedMeat && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground/50">Carne</span>
-                  <span className="text-foreground">{selectedMeat.name}</span>
-                </div>
-              )}
-              {selectedToppings.length > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground/50">Toppings</span>
-                  <span className="text-right text-foreground">
-                    {selectedToppings.map((t) => t.name).join(", ")}
-                  </span>
-                </div>
-              )}
-              {selectedSalsa && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground/50">Salsa</span>
-                  <span className="text-foreground">{selectedSalsa.name}</span>
-                </div>
-              )}
-              {selectedExtras.length > 0 && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground/50">Extras</span>
-                  <span className="text-right text-foreground">
-                    {selectedExtras.map((e) => e.name).join(", ")}
-                  </span>
-                </div>
-              )}
-              <div className="border-t border-dark-border pt-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground/50">Precio unitario</span>
-                  <span className="text-gold">${calculateUnitPrice().toFixed(2)}</span>
-                </div>
+
+              {/* Quantity selector - circular buttons with gold border */}
+              <div className="flex items-center justify-center gap-5">
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  disabled={quantity <= 1}
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-gold/30 text-gold transition-all duration-200 hover:bg-gold/5 hover:border-gold/60 active:scale-90 disabled:cursor-not-allowed disabled:opacity-30 disabled:active:scale-100"
+                >
+                  <svg
+                    className="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+                <span className="min-w-[3rem] text-center text-2xl font-bold text-foreground">
+                  {quantity}
+                </span>
+                <button
+                  onClick={() => setQuantity(Math.min(20, quantity + 1))}
+                  disabled={quantity >= 20}
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-gold/30 text-gold transition-all duration-200 hover:bg-gold/5 hover:border-gold/60 active:scale-90 disabled:cursor-not-allowed disabled:opacity-30 disabled:active:scale-100"
+                >
+                  <svg
+                    className="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-gold/15 bg-gold/[0.03] p-4 text-center">
+                <p className="text-sm text-foreground/50">Total para este item</p>
+                <p className="text-2xl font-bold text-gold">
+                  ${(calculateUnitPrice() * quantity).toFixed(2)}
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setStep("extras")}
+                  className="flex-1 rounded-xl border border-dark-border/60 px-4 py-3 text-sm font-medium text-foreground/60 transition-all duration-200 hover:bg-dark-hover hover:text-foreground active:scale-[0.98]"
+                >
+                  Atrás
+                </button>
+                <button
+                  onClick={addToCart}
+                  className="flex-1 rounded-xl bg-gold px-4 py-3 text-sm font-semibold text-background shadow-lg shadow-gold/20 transition-all duration-200 hover:bg-gold-dark hover:shadow-gold/30 active:scale-[0.98]"
+                >
+                  Agregar al carrito
+                </button>
               </div>
             </div>
-
-            {/* Quantity selector */}
-            <div className="flex items-center justify-center gap-4">
-              <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="flex h-10 w-10 items-center justify-center rounded-lg border border-dark-border text-foreground transition-colors hover:bg-dark-hover"
-              >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </button>
-              <span className="min-w-[3rem] text-center text-2xl font-bold text-foreground">{quantity}</span>
-              <button
-                onClick={() => setQuantity(Math.min(20, quantity + 1))}
-                className="flex h-10 w-10 items-center justify-center rounded-lg border border-dark-border text-foreground transition-colors hover:bg-dark-hover"
-              >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="rounded-xl border border-gold/20 bg-gold/5 p-4 text-center">
-              <p className="text-sm text-foreground/50">Total para este item</p>
-              <p className="text-2xl font-bold text-gold">
-                ${(calculateUnitPrice() * quantity).toFixed(2)}
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setStep("extras")}
-                className="flex-1 rounded-lg border border-dark-border px-4 py-2.5 text-sm font-medium text-foreground/70 transition-colors hover:bg-dark-hover"
-              >
-                Atras
-              </button>
-              <button
-                onClick={addToCart}
-                className="flex-1 rounded-lg bg-gold px-4 py-2.5 text-sm font-semibold text-background transition-colors hover:bg-gold-dark"
-              >
-                Agregar al carrito
-              </button>
-            </div>
-          </div>
+          </FadeStep>
         )}
 
-        {/* Back button for steps other than category */}
+        {/* Back button for steps other than category and confirm */}
         {step !== "category" && step !== "confirm" && (
           <div className="mt-6 flex justify-center">
             <button
@@ -479,9 +716,9 @@ export default function Home() {
                 };
                 setStep(prevStep[step]);
               }}
-              className="text-sm text-foreground/50 transition-colors hover:text-gold"
+              className="text-sm text-foreground/40 transition-all duration-200 hover:text-gold active:scale-95"
             >
-              Atras
+              ← Atrás
             </button>
           </div>
         )}
