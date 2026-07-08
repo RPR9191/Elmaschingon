@@ -1,36 +1,153 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tacos Sinaloa — App de Pedidos
 
-## Getting Started
+Aplicación web de pedidos para **Tacos Sinaloa** — taquería sinaloense en Highland Park, Los Ángeles.
 
-First, run the development server:
+**Dirección:** 5479 N Figueroa St, Highland Park, LA 90042  
+**Teléfono:** (323) 303-2084  
+**WhatsApp:** [wa.me/13233032084](https://wa.me/13233032084)
+
+---
+
+## Tecnologías
+
+- **Next.js 14+** (App Router) — Framework React
+- **TypeScript** — Tipado seguro
+- **Tailwind CSS v4** — Estilos utilitarios
+- **Supabase** — Base de datos PostgreSQL
+- **Netlify** — Hosting
+
+## Estructura del proyecto
+
+```
+src/
+  app/
+    page.tsx              # Página principal — flujo de pedidos
+    layout.tsx            # Layout raíz
+    globals.css           # Estilos globales + tema oscuro/dorado
+    admin/
+      page.tsx            # Panel de administración
+    api/
+      orders/
+        route.ts          # POST / GET orders
+        [id]/
+          route.ts        # PATCH order status
+      menu/
+        route.ts          # GET menu completo
+  components/
+    Header.tsx            # Encabezado con logo y teléfono
+    CartBar.tsx           # Barra de carrito fija inferior
+    OrderModal.tsx        # Modal de revisión de pedido
+  lib/
+    types.ts              # Tipos TypeScript
+    menu-data.ts          # Datos del menú (categorías, carnes, toppings, etc.)
+    icons.tsx             # Componentes SVG iconos
+    supabase.ts           # Cliente Supabase
+supabase-schema.sql       # Esquema SQL + datos semilla
+netlify.toml              # Configuración de build Netlify
+```
+
+## Requisitos previos
+
+- Node.js 18+
+- Cuenta en [Supabase](https://supabase.com)
+- Cuenta en [Netlify](https://netlify.com)
+
+## Configuración local
+
+### 1. Instalar dependencias
+
+```bash
+cd /Users/efrainsilvarojo/Desktop/tacos-sinaloa-next
+npm install
+```
+
+### 2. Configurar Supabase
+
+1. Crea un proyecto en [Supabase](https://supabase.com)
+2. Ve a **SQL Editor** y pega el contenido de `supabase-schema.sql`
+3. Ejecuta el script para crear las tablas y los datos semilla
+4. Ve a **Settings > API** y copia tu URL y anon key
+
+### 3. Variables de entorno
+
+```bash
+cp .env.example .env.local
+```
+
+Edita `.env.local` con tus credenciales de Supabase:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
+SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
+```
+
+### 4. Iniciar servidor de desarrollo
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 5. Panel de administración
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Visita [http://localhost:3000/admin](http://localhost:3000/admin)
 
-## Learn More
+**Contraseña por defecto:** `tacos2024`
 
-To learn more about Next.js, take a look at the following resources:
+## Rutas disponibles
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Ruta | Descripción |
+|------|-------------|
+| `/` | Flujo de pedidos paso a paso |
+| `/admin` | Panel de administración con login |
+| `/api/orders` | API: crear y listar pedidos |
+| `/api/orders/[id]` | API: actualizar estado de pedido |
+| `/api/menu` | API: obtener menú completo |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Flujo del pedido
 
-## Deploy on Vercel
+1. Cliente selecciona categoría (Tacos, Chorreadas, Vampiros, Gringas, Burritos, Quesadillas)
+2. Selecciona carne (Asada, Pastor, Pollo, Chorizo, Cabeza)
+3. Selecciona toppings (multi-select: Cebolla, Cilantro, Lechuga, Jitomate, Frijoles, Arroz, Crema, Aguacate)
+4. Selecciona salsa (Roja, Verde, Guacamole, Habanero)
+5. Selecciona extras (Queso extra, Más carne, Totopos)
+6. Confirma cantidad y agrega al carrito
+7. Puede seguir agregando más items
+8. Revisa el carrito y envia por WhatsApp
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy a Netlify
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Opción 1: Conectar con GitHub (recomendado)
+
+1. Sube el proyecto a GitHub
+2. En Netlify, click "Add new site" > "Import an existing project"
+3. Conecta tu repositorio de GitHub
+4. Netlify detectará automáticamente la configuración de `netlify.toml`
+5. Agrega las variables de entorno en Netlify:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+6. Click "Deploy site"
+
+### Opción 2: Deploy manual
+
+```bash
+npm run build
+npx netlify-cli deploy --prod
+```
+
+## Precios
+
+| Item | Precio base |
+|------|-------------|
+| Taco | $3.00 |
+| Chorreada | $7.00 |
+| Vampiro | $6.50 |
+| Gringa | $16.00 |
+| Burrito | $13.00 |
+| Quesadilla | $9.00 |
+
+**Extras:** Queso extra +$1.00, Más carne +$3.00, Totopos +$2.00  
+**Toppings con costo extra:** Frijoles +$1.00, Arroz +$1.00, Aguacate +$1.50
