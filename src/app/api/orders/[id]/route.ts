@@ -1,19 +1,14 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { updateOrderStatus } from "@/lib/order-store";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!supabaseAdmin) {
-    return NextResponse.json(
-      { error: "Supabase no configurado" },
-      { status: 500 }
-    );
-  }
-
   try {
     const { id } = await params;
+    const numericId = parseInt(id, 10);
     const body = await request.json();
     const { status } = body;
 
@@ -25,18 +20,31 @@ export async function PATCH(
       );
     }
 
-    const { data, error } = await supabaseAdmin
-      .from("orders")
-      .update({ status })
-      .eq("id", id)
-      .select()
-      .single();
+    // Try Supabase first
+    if (isSupabaseConfigured() && supabaseAdmin) {
+      const { data, error } = await supabaseAdmin
+        .from("orders")
+        .update({ status })
+        .eq("id", numericId)
+        .select()
+        .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      if (!error && data) {
+        return NextResponse.json(data);
+      }
+      console.warn("[orders/:id] Supabase error on PATCH, falling back to local store:", error?.message);
     }
 
-    return NextResponse.json(data);
+    // Fallback: update locally
+    const updated = updateOrderStatus(numericId, status);
+    if (!updated) {
+      return NextResponse.json(
+        { error: `Orden con id ${id} no encontrada` },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(updated);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Error interno" },

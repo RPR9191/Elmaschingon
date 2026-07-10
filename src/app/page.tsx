@@ -249,7 +249,7 @@ export default function Home() {
         alert("Error al guardar: " + (data.error || "Desconocido"));
       }
     } catch (err) {
-      alert("Error de conexion. Verifica que Supabase este configurado.");
+      alert("Error de conexion. Intenta de nuevo.");
     } finally {
       setSaving(false);
     }

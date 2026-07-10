@@ -27,3 +27,11 @@ function getAdminClient(): SupabaseClient | null {
 
 export const supabase = getClient();
 export const supabaseAdmin = getAdminClient();
+
+/**
+ * Check if Supabase environment variables are configured
+ * Use this in API routes to decide whether to try Supabase or go straight to local fallback
+ */
+export function isSupabaseConfigured(): boolean {
+  return !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
