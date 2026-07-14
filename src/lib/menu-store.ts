@@ -81,34 +81,42 @@ const HARDCODED_MENU: MenuData = {
   config: { whatsapp_number: "13233032084" },
 };
 
-function ensureMenuFile(): void {
-  const dir = path.dirname(MENU_FILE);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  if (!fs.existsSync(MENU_FILE)) {
-    fs.writeFileSync(MENU_FILE, JSON.stringify(HARDCODED_MENU, null, 2), "utf-8");
-  }
-}
-
+/**
+ * Try to read menu from file. On any failure (file not found, read error, parse error,
+ * or readonly filesystem in serverless), return the hardcoded default menu.
+ */
 export function getMenu(): MenuData {
-  ensureMenuFile();
   try {
-    const raw = fs.readFileSync(MENU_FILE, "utf-8");
-    const parsed = JSON.parse(raw) as MenuData;
-    // Return hardcoded data if the file is empty (no categories, etc.)
-    if (!parsed.categories || parsed.categories.length === 0) {
-      return HARDCODED_MENU;
+    if (fs.existsSync(MENU_FILE)) {
+      const raw = fs.readFileSync(MENU_FILE, "utf-8");
+      const parsed = JSON.parse(raw) as MenuData;
+      // Return hardcoded data if the file is empty (no categories, etc.)
+      if (!parsed.categories || parsed.categories.length === 0) {
+        return HARDCODED_MENU;
+      }
+      return parsed;
     }
-    return parsed;
   } catch {
-    return HARDCODED_MENU;
+    // File doesn't exist or can't be read (e.g. Vercel serverless)
   }
+  return HARDCODED_MENU;
 }
 
-export function saveMenu(data: MenuData): void {
-  ensureMenuFile();
-  fs.writeFileSync(MENU_FILE, JSON.stringify(data, null, 2), "utf-8");
+/**
+ * Try to save menu to file. Silently catches errors (readonly filesystem in serverless).
+ */
+export function saveMenu(data: MenuData): boolean {
+  try {
+    const dir = path.dirname(MENU_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(MENU_FILE, JSON.stringify(data, null, 2), "utf-8");
+    return true;
+  } catch {
+    // Cannot write (readonly filesystem in Vercel serverless)
+    return false;
+  }
 }
 
 export function updateSection(section: string, items: unknown[]): MenuData {

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { getOrders, createOrder } from "@/lib/order-store";
 
@@ -21,20 +21,30 @@ export async function GET() {
   return NextResponse.json(localOrders);
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // Parse body once and reuse
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Body invalido" },
+      { status: 400 }
+    );
+  }
+
+  const { customer_name, customer_phone, items, total, notes, payment_method } = body;
+
+  if (!customer_name || !items || items.length === 0) {
+    return NextResponse.json(
+      { error: "Nombre del cliente y al menos un item son requeridos" },
+      { status: 400 }
+    );
+  }
+
   // Try Supabase first
   if (isSupabaseConfigured() && supabaseAdmin) {
     try {
-      const body = await request.json();
-      const { customer_name, customer_phone, items, total, notes, payment_method } = body;
-
-      if (!customer_name || !items || items.length === 0) {
-        return NextResponse.json(
-          { error: "Nombre del cliente y al menos un item son requeridos" },
-          { status: 400 }
-        );
-      }
-
       // Insert the order
       const { data: order, error: orderError } = await supabaseAdmin
         .from("orders")
@@ -80,18 +90,8 @@ export async function POST(request: Request) {
     }
   }
 
-  // Fallback: save order locally
+  // Fallback: save order locally (memory-only in Vercel serverless)
   try {
-    const body = await request.json();
-    const { customer_name, customer_phone, items, total, notes, payment_method } = body;
-
-    if (!customer_name || !items || items.length === 0) {
-      return NextResponse.json(
-        { error: "Nombre del cliente y al menos un item son requeridos" },
-        { status: 400 }
-      );
-    }
-
     const order = createOrder({
       customer_name,
       customer_phone: customer_phone || "",

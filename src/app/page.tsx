@@ -215,44 +215,43 @@ export default function Home() {
   const saveOrder = async () => {
     if (!customerName.trim()) return;
     setSaving(true);
-    try {
-      const payload = {
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        items: cart.map((item) => ({
-          category_name: item.category.name,
-          meat_name: item.meat?.name || null,
-          toppings: item.toppings.map((t) => t.name),
-          salsa_name: item.salsa?.name || null,
-          extras: item.extras.map((e) => e.name),
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          total_price: item.total_price,
-        })),
-        total: getTotal(),
-        notes: "",
-        payment_method: "efectivo",
-      };
+    // Build order payload
+    const payload = {
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      items: cart.map((item) => ({
+        category_name: item.category.name,
+        meat_name: item.meat?.name || null,
+        toppings: item.toppings.map((t) => t.name),
+        salsa_name: item.salsa?.name || null,
+        extras: item.extras.map((e) => e.name),
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.total_price,
+      })),
+      total: getTotal(),
+      notes: "",
+      payment_method: "efectivo",
+    };
 
-      const res = await fetch("/api/orders", {
+    // Best-effort: try to save via API (may fail on Vercel without Supabase)
+    try {
+      await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
-      if (res.ok) {
-        setCart([]);
-        setShowModal(false);
-        alert("Pedido guardado exitosamente!");
-      } else {
-        const data = await res.json();
-        alert("Error al guardar: " + (data.error || "Desconocido"));
-      }
-    } catch (err) {
-      alert("Error de conexion. Intenta de nuevo.");
-    } finally {
-      setSaving(false);
+    } catch {
+      // Silently ignore — WhatsApp is the primary delivery channel
     }
+
+    // Always open WhatsApp regardless of API result
+    sendWhatsApp();
+
+    // Clear state
+    setCart([]);
+    setShowModal(false);
+    setSaving(false);
   };
 
   const stepTitle = (s: Step): string => {

@@ -785,6 +785,14 @@ export default function AdminPage() {
                 Los cambios se reflejan automaticamente en la pagina de pedidos. Usa &quot;Guardar cambios&quot; para aplicar.
               </p>
             </div>
+            <div className="mb-4 rounded-lg border border-warning/20 bg-warning/5 p-3 text-xs text-warning">
+              <strong>⚠️ Modo lectura:</strong> En Vercel los cambios se guardan solo en memoria y se pierden al recargar.
+              Para persistencia real,&nbsp;
+              <a href="https://supabase.com/dashboard/project/zjdebmoupyslktofsaau" target="_blank" rel="noopener noreferrer" className="underline hover:text-warning-light">
+                conecta Supabase
+              </a>
+              &nbsp;y configura las variables de entorno.
+            </div>
             {renderMenuEditor()}
           </>
         )}

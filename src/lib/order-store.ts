@@ -16,29 +16,37 @@ interface StoredOrder {
 
 const ORDERS_FILE = path.join(process.cwd(), "data", "orders.json");
 
-function ensureOrdersFile(): void {
-  const dir = path.dirname(ORDERS_FILE);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  if (!fs.existsSync(ORDERS_FILE)) {
-    fs.writeFileSync(ORDERS_FILE, JSON.stringify([], null, 2), "utf-8");
-  }
-}
-
+/**
+ * Try to read orders from file. On any failure (file not found, read error, parse error,
+ * or readonly filesystem in serverless), return an empty array.
+ */
 function readOrders(): StoredOrder[] {
-  ensureOrdersFile();
   try {
-    const raw = fs.readFileSync(ORDERS_FILE, "utf-8");
-    return JSON.parse(raw) as StoredOrder[];
+    if (fs.existsSync(ORDERS_FILE)) {
+      const raw = fs.readFileSync(ORDERS_FILE, "utf-8");
+      return JSON.parse(raw) as StoredOrder[];
+    }
   } catch {
-    return [];
+    // File doesn't exist or can't be read (e.g. Vercel serverless)
   }
+  return [];
 }
 
-function writeOrders(orders: StoredOrder[]): void {
-  ensureOrdersFile();
-  fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2), "utf-8");
+/**
+ * Try to write orders to file. Silently catches errors (readonly filesystem in serverless).
+ */
+function writeOrders(orders: StoredOrder[]): boolean {
+  try {
+    const dir = path.dirname(ORDERS_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2), "utf-8");
+    return true;
+  } catch {
+    // Cannot write (readonly filesystem in Vercel serverless)
+    return false;
+  }
 }
 
 export function getOrders(): StoredOrder[] {

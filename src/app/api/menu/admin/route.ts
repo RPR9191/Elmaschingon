@@ -32,14 +32,14 @@ export async function GET() {
  * - { section: "categories"|"meats"|"toppings"|"salsas"|"extras", items: [...] } -> replace entire section
  * - { section: "...", item: {...} } -> add new item to section
  * - { config: {...} } -> update config (whatsapp number, etc.)
- * - { section: "...", items: [...] } with config -> update both
+ * - { ... } -> full menu replacement
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
     // Update config
-    if (body.config) {
+    if (body.config && !body.categories && !body.meats && !body.toppings && !body.salsas && !body.extras) {
       const menu = updateConfig(body.config);
       return NextResponse.json(menu);
     }
@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     // Update a section with new items array
     if (body.section && body.items !== undefined) {
       const menu = updateSection(body.section, body.items);
+      // If this is a full menu save from the admin panel, handle it
       return NextResponse.json(menu);
     }
 
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(menu);
     }
 
-    // Full menu replacement
+    // Full menu replacement (sent by admin "Guardar cambios" button)
     if (body.categories || body.meats || body.toppings || body.salsas || body.extras) {
       const current = getMenu();
       const updated = {
@@ -68,7 +69,8 @@ export async function POST(request: NextRequest) {
         ...(body.extras !== undefined ? { extras: body.extras } : {}),
         ...(body.config !== undefined ? { config: body.config } : {}),
       };
-      saveMenu(updated);
+      const saved = saveMenu(updated);
+      // Always return the data, even if persistence failed
       return NextResponse.json(updated);
     }
 
