@@ -624,7 +624,7 @@ export default function AdminPage() {
 
             {ordersError && (
               <div className="mb-4 rounded-lg border border-error/20 bg-error/5 p-3 text-sm text-error">
-                {ordersError} — Asegurate de configurar las variables de entorno de Supabase.
+                {ordersError} — No hay pedidos aún. Cuando los clientes ordenen aparecerán aquí.
               </div>
             )}
 

@@ -41,23 +41,53 @@ function isItemSection(key: SectionKey): boolean {
   return (ITEM_SECTIONS as string[]).includes(key);
 }
 
+const HARDCODED_MENU: MenuData = {
+  categories: [
+    { id: 1, name: "Tacos", base_price: 3, icon: "taco", sort_order: 1 },
+    { id: 2, name: "Chorreadas", base_price: 7, icon: "", sort_order: 2 },
+    { id: 3, name: "Vampiros", base_price: 6.5, icon: "", sort_order: 3 },
+    { id: 4, name: "Gringas", base_price: 16, icon: "", sort_order: 4 },
+    { id: 5, name: "Burritos", base_price: 13, icon: "", sort_order: 5 },
+    { id: 6, name: "Quesadillas", base_price: 9, icon: "", sort_order: 6 },
+  ],
+  meats: [
+    { id: 1, name: "Carne Asada", description: "" },
+    { id: 2, name: "Al Pastor", description: "" },
+    { id: 3, name: "Pollo", description: "" },
+    { id: 4, name: "Chorizo", description: "" },
+    { id: 5, name: "Cabeza", description: "" },
+  ],
+  toppings: [
+    { id: 1, name: "Cebolla", extra_price: 0 },
+    { id: 2, name: "Cilantro", extra_price: 0 },
+    { id: 3, name: "Lechuga", extra_price: 0 },
+    { id: 4, name: "Jitomate", extra_price: 0 },
+    { id: 5, name: "Frijoles", extra_price: 1 },
+    { id: 6, name: "Arroz", extra_price: 1 },
+    { id: 7, name: "Crema", extra_price: 0 },
+    { id: 8, name: "Aguacate", extra_price: 1.5 },
+  ],
+  salsas: [
+    { id: 1, name: "Salsa Roja", description: "" },
+    { id: 2, name: "Salsa Verde", description: "" },
+    { id: 3, name: "Salsa de Guacamole", description: "" },
+    { id: 4, name: "Salsa Habanero", description: "" },
+  ],
+  extras: [
+    { id: 1, name: "Queso extra", price: 1 },
+    { id: 2, name: "Más carne", price: 3 },
+    { id: 3, name: "Totopos con salsa", price: 2 },
+  ],
+  config: { whatsapp_number: "13233032084" },
+};
+
 function ensureMenuFile(): void {
   const dir = path.dirname(MENU_FILE);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
   if (!fs.existsSync(MENU_FILE)) {
-    const defaultData: MenuData = {
-      categories: [],
-      meats: [],
-      toppings: [],
-      salsas: [],
-      extras: [],
-      config: {
-        whatsapp_number: "13233032084",
-      },
-    };
-    fs.writeFileSync(MENU_FILE, JSON.stringify(defaultData, null, 2), "utf-8");
+    fs.writeFileSync(MENU_FILE, JSON.stringify(HARDCODED_MENU, null, 2), "utf-8");
   }
 }
 
@@ -65,18 +95,14 @@ export function getMenu(): MenuData {
   ensureMenuFile();
   try {
     const raw = fs.readFileSync(MENU_FILE, "utf-8");
-    return JSON.parse(raw) as MenuData;
+    const parsed = JSON.parse(raw) as MenuData;
+    // Return hardcoded data if the file is empty (no categories, etc.)
+    if (!parsed.categories || parsed.categories.length === 0) {
+      return HARDCODED_MENU;
+    }
+    return parsed;
   } catch {
-    const defaultData: MenuData = {
-      categories: [],
-      meats: [],
-      toppings: [],
-      salsas: [],
-      extras: [],
-      config: { whatsapp_number: "13233032084" },
-    };
-    fs.writeFileSync(MENU_FILE, JSON.stringify(defaultData, null, 2), "utf-8");
-    return defaultData;
+    return HARDCODED_MENU;
   }
 }
 
